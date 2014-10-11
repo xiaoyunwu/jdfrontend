@@ -58,9 +58,9 @@ func proxy(w http.ResponseWriter, r *http.Request, client *http.Client) {
     defer resp.Body.Close()
     if err != nil {
         log.Fatal(err)
+        w.WriteHeader(resp.StatusCode)
         return
     }       
-
 
     // Copy the content to client.
     copyHeaders(w.Header(), resp.Header)

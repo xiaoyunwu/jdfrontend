@@ -14,7 +14,7 @@ func main() {
         DisableKeepAlives: false,
         MaxIdleConnsPerHost: 48,
     }
-    
+
     client := &http.Client{Transport: tr}
 
     http.HandleFunc("/jds", func(w http.ResponseWriter, r *http.Request) {
@@ -31,35 +31,45 @@ func main() {
 // Late, we can add cache support, and also a/b testing support, and ads mixing
 // support. We also need to add tracking support.
 func proxy(w http.ResponseWriter, r *http.Request, client *http.Client) {
-        r.ParseForm()
-        var lurl *url.URL
-        lurl, err := url.Parse("http://localhost:9200")
-        lurl.Path += "/jidian/_jds"
-        parameters := url.Values{}
-      
-        for k, vs := range r.Form {
-            for _, v := range vs {
-                parameters.Add(k, v)
-            }
+    // Pointing to the real backend.
+    var lurl *url.URL
+    lurl, err := url.Parse("http://localhost:9200")
+    lurl.Path += "/jidian/_jds"
+    parameters := url.Values{}
+    
+    // Now we forward all the parameter from the client.
+    r.ParseForm()
+    for k, vs := range r.Form {
+        for _, v := range vs {
+            parameters.Add(k, v)
         }
+    }
         
-        lurl.RawQuery = parameters.Encode()
+    lurl.RawQuery = parameters.Encode()
 
-        req, err := http.NewRequest("GET", lurl.String(), nil)
-        if err != nil {
-            log.Fatal(err)
-        }       
-        resp, err := client.Do(req)
-        if err != nil {
-            log.Fatal(err)
-        }       
+    // Fetch the result from the real backend
+    req, err := http.NewRequest("GET", lurl.String(), nil)
+    if err != nil {
+        log.Fatal(err)
+        return
+    }
 
-        copyHeaders(w.Header(), resp.Header)
-        w.WriteHeader(resp.StatusCode)
-        _, err = io.Copy(w, resp.Body)
-        if err := resp.Body.Close(); err != nil {
-            log.Fatal("Can't close response body %v", err)
-        }
+    resp, err := client.Do(req)
+    defer resp.Body.Close()
+    if err != nil {
+        log.Fatal(err)
+        return
+    }       
+
+
+    // Copy the content to client.
+    copyHeaders(w.Header(), resp.Header)
+    w.WriteHeader(resp.StatusCode)
+    _, err = io.Copy(w, resp.Body)
+    if err != nil {
+        log.Fatal(err)
+        return
+    }
 }  
 
 func copyHeaders(dst, src http.Header) {

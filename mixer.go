@@ -7,7 +7,6 @@ import (
     "log"
 )
 
-
 func main() {
     tr := &http.Transport{
         DisableCompression: true,
@@ -41,6 +40,7 @@ func proxy(w http.ResponseWriter, r *http.Request, client *http.Client) {
     r.ParseForm()
     for k, vs := range r.Form {
         for _, v := range vs {
+            if k
             parameters.Add(k, v)
         }
     }
